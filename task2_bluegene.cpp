@@ -173,6 +173,33 @@ void Matrix_Out(Matrix* a){
 	}
 }
 
+double max_norm(Matrix* p, Matrix* p_prev) {
+    double max_local = (*p_prev)[0][0] - (*p)[0][0];
+    if (max_local < 0) {
+     	max_local = -max_local;
+    }
+    double tmp; 
+    for(int i = 1; i < p->size() - 1; i++){
+		for(int j = 1; j < (*p)[0].size() - 1; j++){
+
+		}
+	}
+    for (int j=0; j< p->size() - 1; j++) { 
+        for (int i=0; i< (*p)[0].size(); i++) {            
+            tmp = (*p_prev)[j][i] - (*p)[j][i];
+            if (tmp < 0) {
+            	tmp = -tmp;
+            }
+            if (tmp > max_local)
+                max_local = tmp;
+         }
+    }
+    double max_global;
+    // Find max
+    MPI_Allreduce(&max_local, &max_global, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    return max_global;
+}
+
 int main(int argc, char** argv){
 	MPI_Init(&argc, &argv);
 	int pid, np;
@@ -278,7 +305,7 @@ int main(int argc, char** argv){
 	h.h2.resize(p_clmns_el + 1, 0);
 	h.avrg_h2.resize(p_clmns_el, 0); 
 	for (size_t i = 0; i < p_clmns_el; i++){
-		y[i] = b2 * f(static_cast<double>((strt_clmn_el + i)) / (n0_n1 - 1), q) + b1 * (1 - f(static_cast<double>((strt_clmn_el + i)) / (n0_n1 - 1), q));/
+		y[i] = b2 * f(static_cast<double>((strt_clmn_el + i)) / (n0_n1 - 1), q) + b1 * (1 - f(static_cast<double>((strt_clmn_el + i)) / (n0_n1 - 1), q));
 	}
 	h.h2[0] = x[1] - x[0];
 	for(size_t i = 1; i < p_clmns_el - 1; i++){
@@ -336,6 +363,7 @@ int main(int argc, char** argv){
 	//Matrix_Out(mtrx);
 	size_t itr = -1;
 	double nrm = 0;
+	double MAX_NORM = 0;
 	do{
 		++itr;
 		double alpha = 0;
@@ -378,27 +406,14 @@ int main(int argc, char** argv){
 		tmp_mtrx1 = Matrix_Prod_Scalar(g_mtrx, -tau);
 		nrm = Dot(tmp_mtrx1, tmp_mtrx1, h);
 		tmp_mtrx2 = Matrix_Plus(mtrx, tmp_mtrx1);
+
+		MAX_NORM = max_norm(tmp_mtrx2, mtrx);
+
 		delete mtrx;
 		mtrx = tmp_mtrx2;
 		delete tmp_mtrx1;
-		if (pid == 0){
-			for (int i = 1; i < np; i++){
-				double tmp = 0;
-				MPI_Recv(&tmp, 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, s);
-				nrm += tmp;
-			}
-			nrm = sqrt(nrm);
-			for (int i = 1; i < np; i++){
-				MPI_Send(&nrm, 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
-			}
-		}
-		else{
-			MPI_Send(&nrm, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
-			MPI_Recv(&nrm, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, s);
-		}
-		//std::cout << "Debug 1: nrm = " << nrm << "\n";
 	}
-    while(nrm > eps);
+    while(MAX_NORM > eps);
 	delete g_mtrx;
 	delete r_mtrx;
 	Matrix* err_mtrx(new Matrix(p_clmns_el, std::vector<double>(p_rws_el, 0)));
@@ -424,15 +439,15 @@ int main(int argc, char** argv){
 		std::cout << "Success! Time = " << MPI_Wtime() - strt_time << "\n";
 		std::cout << "Number of iteration = " << itr << "\n";
 		std::cout << "Error = " << err << "\n";
-	}
-	delete mtrx;
-	delete s;
+	}	
 	/*for (int i = 0; i < np; i++){
 		if (pid == i){
 			std::cout << pid << ":\n";
 			Matrix_Out(mtrx);
 		}
 	}*/
+	delete mtrx;
+	delete s;
 	MPI_Finalize();
 	return 0;
 }
