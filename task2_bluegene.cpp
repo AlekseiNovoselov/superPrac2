@@ -46,11 +46,11 @@ double f(double t, double q){
 }
 
 double phi(double x, double y){
-	return pow((1 - pow(x, 2)), 2) + pow((1 - pow(y, 2)), 2);
+	return 1+sin(x*y);
 }
 
 double F(double x, double y){
-	return 4 * (2 - 3 * pow(x, 2) - 3 * pow(y, 2));
+	return (x*x+y*y)*sin(x*y);
 }
 
 Matrix* Matrix_Plus(Matrix* a, Matrix* b) {
@@ -233,11 +233,11 @@ int main(int argc, char** argv){
 		MPI_Finalize();
 		return (3);
 	}
-	const double q = 1.5;
+	const double q = 2.0/3.0;
 	const double a1 = 0;
-	const double a2 = 1;
+	const double a2 = 2;
 	const double b1 = 0;
-	const double b2 = 1;
+	const double b2 = 2;
 	const double eps = 1e-4;
 	size_t p_in_rw = 0;
 	(pwr % 2 == 0) ? p_in_rw = pow(2, pwr / 2) : p_in_rw = pow(2, (pwr + 1) / 2);
